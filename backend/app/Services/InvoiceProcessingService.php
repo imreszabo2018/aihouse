@@ -129,19 +129,10 @@ class InvoiceProcessingService
                 preg_replace('/[\s.-]+/', '', $taxNumber)
             );
 
-            $partner = \App\Models\Partner::all()->first(
-                function ($existingPartner) use ($normalizedTaxNumber) {
-                    $existingTaxNumber = strtoupper(
-                        preg_replace(
-                            '/[\s.-]+/',
-                            '',
-                            $existingPartner->tax_number ?? ''
-                        )
-                    );
-
-                    return $existingTaxNumber === $normalizedTaxNumber;
-                }
-            );
+            $partner = \App\Models\Partner::whereRaw(
+                "UPPER(REPLACE(REPLACE(REPLACE(tax_number, ' ', ''), '-', ''), '.', '')) = ?",
+                [$normalizedTaxNumber]
+            )->first();
 
             if ($partner !== null) {
                 return $partner;
@@ -154,8 +145,7 @@ class InvoiceProcessingService
             'country_code' => $partnerData['country_code'] ?? null,
         ]);
     }
-
-
+    
     private function determineDirection(
         array $sellerData,
         array $buyerData
