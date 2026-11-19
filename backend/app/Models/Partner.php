@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Partner extends Model
 {
@@ -13,4 +14,14 @@ class Partner extends Model
         'email',
         'address',
     ];
+
+    public function sellerInvoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'seller_id');
+    }
+
+    public function buyerInvoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'buyer_id');
+    }
 }

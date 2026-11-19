@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\PartnerController;
+use App\Http\Controllers\Api\InvoiceController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -20,3 +21,6 @@ Route::get('/partners/{partner}', [PartnerController::class, 'show']);
 Route::post('/partners', [PartnerController::class, 'store']);
 Route::put('/partners/{partner}', [PartnerController::class, 'update']);
 Route::delete('/partners/{partner}', [PartnerController::class, 'destroy']);
+Route::get('/invoices', [InvoiceController::class, 'index']);
+Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
+Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy']);
