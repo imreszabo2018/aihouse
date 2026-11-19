@@ -17,3 +17,6 @@ Route::get('/health', function () {
 
 Route::get('/partners', [PartnerController::class, 'index']);
 Route::get('/partners/{partner}', [PartnerController::class, 'show']);
+Route::post('/partners', [PartnerController::class, 'store']);
+Route::put('/partners/{partner}', [PartnerController::class, 'update']);
+Route::delete('/partners/{partner}', [PartnerController::class, 'destroy']);

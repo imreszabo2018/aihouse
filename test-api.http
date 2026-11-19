@@ -1,0 +1,52 @@
+
+### Create a new partner
+POST http://localhost:8000/api/partners
+Content-Type: application/json
+Accept: application/json
+
+{
+    "name": "Nordwind Solutions Kft.",
+    "tax_number": "26481937-2-43",
+    "country_code": "HU",
+    "email": "info@nordwind.example",
+    "address": "Budapest, Hungary"
+}
+
+
+### Test validation errors
+POST http://localhost:8000/api/partners
+Content-Type: application/json
+Accept: application/json
+
+{
+    "name": "",
+    "tax_number": "12345",
+    "country_code": "HUN",
+    "email": "not-an-email"
+}
+
+
+### Update an existing partner
+PUT http://localhost:8000/api/partners/2
+Content-Type: application/json
+Accept: application/json
+
+{
+    "email": "finance@nordwind.example",
+    "address": "Kecskemét, Hungary"
+}
+
+
+### Create a temporary test partner
+POST http://localhost:8000/api/partners
+Content-Type: application/json
+Accept: application/json
+
+{
+    "name": "Temporary Test Partner",
+    "country_code": "HU"
+}
+
+### Delete the temporary test partner
+DELETE http://localhost:8000/api/partners/3
+Accept: application/json
