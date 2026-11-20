@@ -12,6 +12,7 @@ class InvoiceProcessingService
         private PdfParserService $pdfParser,
         private InvoiceAiService $invoiceAi,
         private InvoiceDataValidator $validator,
+        private ExchangeRateService $exchangeRateService,
     ) {
     }
 
@@ -80,7 +81,24 @@ class InvoiceProcessingService
 
             $validatedData = $this->validator->validate($extractedData);
 
-            DB::transaction(function () use ($validatedData, $invoice) {
+            $currency = strtoupper($validatedData['currency']);
+
+            $grossAmount = (float) $validatedData['gross_amount'];
+
+            if ($currency === 'HUF') {
+                $exchangeRate = 1;
+                $amountHuf = $grossAmount;
+            } else {
+                $rate = $this->exchangeRateService->getExchangeRate(
+                    $currency,
+                    $validatedData['fulfillment_date']
+                );
+
+                $exchangeRate = (float) $rate->rate;
+                $amountHuf = $grossAmount * $exchangeRate / $rate->unit;
+            }
+
+            DB::transaction(function () use ($validatedData, $invoice, $currency, $exchangeRate, $amountHuf) {
                 $seller = $this->findOrCreatePartner(
                     $validatedData['seller']
                 );
@@ -101,8 +119,10 @@ class InvoiceProcessingService
                     'issue_date' => $validatedData['issue_date'],
                     'fulfillment_date' => $validatedData['fulfillment_date'],
                     'due_date' => $validatedData['due_date'] ?? null,
-                    'currency' => $validatedData['currency'],
+                    'currency' => $currency,
                     'gross_amount' => $validatedData['gross_amount'],
+                    'exchange_rate' => $exchangeRate,
+                    'amount_huf' => round($amountHuf, 2),
                     'direction' => $direction,
                     'processing_status' => 'processed',
                     'processing_error' => null,
@@ -145,7 +165,7 @@ class InvoiceProcessingService
             'country_code' => $partnerData['country_code'] ?? null,
         ]);
     }
-    
+
     private function determineDirection(
         array $sellerData,
         array $buyerData

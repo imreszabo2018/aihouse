@@ -2,6 +2,11 @@
 
 namespace Tests\Unit;
 
+use App\Models\ExchangeRate;
+use App\Services\PdfParserService;
+use App\Services\InvoiceAiService;
+use App\Services\InvoiceDataValidator;
+use App\Services\ExchangeRateService;
 use App\Services\InvoiceProcessingService;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -245,4 +250,131 @@ class InvoiceProcessingServiceTest extends TestCase
         );
     }
 
+    public function test_it_converts_eur_invoice_amount_to_huf(): void
+    {
+        Storage::fake('local');
+
+        Storage::disk('local')->put(
+            'test/test-invoice.pdf',
+            'Sample PDF content'
+        );
+
+        $this->mock(PdfParserService::class)
+            ->shouldReceive('extractText')
+            ->once()
+            ->andReturn('Invoice text');
+
+        $this->mock(InvoiceAiService::class)
+            ->shouldReceive('extractInvoiceData')
+            ->once()
+            ->andReturn(['invoice' => 'data']);
+
+        $validatedData = [
+            'seller' => [
+                'name' => 'NORDWIND SOLUTIONS KFT.',
+                'tax_number' => '26481937-2-43',
+                'country_code' => 'HU',
+            ],
+            'buyer' => [
+                'name' => 'PANNON IRODASZER KFT.',
+                'tax_number' => 'HU23918466',
+                'country_code' => 'HU',
+            ],
+            'invoice_number' => 'TEST-EUR-001',
+            'issue_date' => '2026-11-19',
+            'fulfillment_date' => '2026-11-19',
+            'due_date' => '2026-12-03',
+            'currency' => 'EUR',
+            'gross_amount' => 100,
+        ];
+
+        $this->mock(InvoiceDataValidator::class)
+            ->shouldReceive('validate')
+            ->once()
+            ->with(['invoice' => 'data'])
+            ->andReturn($validatedData);
+
+        $this->mock(ExchangeRateService::class)
+            ->shouldReceive('getExchangeRate')
+            ->once()
+            ->with('EUR', '2026-11-19')
+            ->andReturn(new ExchangeRate([
+                'currency' => 'EUR',
+                'rate_date' => '2026-11-19',
+                'rate' => 368.970000,
+                'unit' => 1,
+            ]));
+
+        $service = app(InvoiceProcessingService::class);
+
+        $invoice = $service->process(
+            'test/test-invoice.pdf',
+            'test-invoice.pdf'
+        );
+
+        $this->assertSame('EUR', $invoice->currency);
+        $this->assertEquals(100, $invoice->gross_amount);
+        $this->assertEquals(368.970000, $invoice->exchange_rate);
+        $this->assertEquals(36897.00, $invoice->amount_huf);
+        $this->assertSame('processed', $invoice->processing_status);
+    }
+    public function test_it_keeps_huf_invoice_amount_without_exchange_rate_lookup(): void
+    {
+        Storage::fake('local');
+
+        Storage::disk('local')->put(
+            'test/test-huf-invoice.pdf',
+            'Sample HUF PDF content'
+        );
+
+        $this->mock(PdfParserService::class)
+            ->shouldReceive('extractText')
+            ->once()
+            ->andReturn('Invoice text');
+
+        $this->mock(InvoiceAiService::class)
+            ->shouldReceive('extractInvoiceData')
+            ->once()
+            ->andReturn(['invoice' => 'data']);
+
+        $validatedData = [
+            'seller' => [
+                'name' => 'NORDWIND SOLUTIONS KFT.',
+                'tax_number' => '26481937-2-43',
+                'country_code' => 'HU',
+            ],
+            'buyer' => [
+                'name' => 'PANNON IRODASZER KFT.',
+                'tax_number' => 'HU23918466',
+                'country_code' => 'HU',
+            ],
+            'invoice_number' => 'TEST-HUF-001',
+            'issue_date' => '2026-11-19',
+            'fulfillment_date' => '2026-11-19',
+            'due_date' => '2026-12-03',
+            'currency' => 'HUF',
+            'gross_amount' => 12345.67,
+        ];
+
+        $this->mock(InvoiceDataValidator::class)
+            ->shouldReceive('validate')
+            ->once()
+            ->andReturn($validatedData);
+
+        $this->mock(ExchangeRateService::class)
+            ->shouldNotReceive('getExchangeRate');
+
+        $service = app(InvoiceProcessingService::class);
+
+        $invoice = $service->process(
+            'test/test-huf-invoice.pdf',
+            'test-huf-invoice.pdf'
+        );
+
+        $this->assertSame('HUF', $invoice->currency);
+        $this->assertEquals(12345.67, $invoice->gross_amount);
+        $this->assertEquals(1, $invoice->exchange_rate);
+        $this->assertEquals(12345.67, $invoice->amount_huf);
+        $this->assertSame('processed', $invoice->processing_status);
+    }
 }
