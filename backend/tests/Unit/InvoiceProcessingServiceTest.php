@@ -315,6 +315,10 @@ class InvoiceProcessingServiceTest extends TestCase
         $this->assertSame('EUR', $invoice->currency);
         $this->assertEquals(100, $invoice->gross_amount);
         $this->assertEquals(368.970000, $invoice->exchange_rate);
+        $this->assertDatabaseHas('invoices', [
+            'id' => $invoice->id,
+            'exchange_rate_date' => '2026-11-19 00:00:00',
+        ]);
         $this->assertEquals(36897.00, $invoice->amount_huf);
         $this->assertSame('processed', $invoice->processing_status);
     }

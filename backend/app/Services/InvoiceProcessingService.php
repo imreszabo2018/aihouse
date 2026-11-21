@@ -85,6 +85,8 @@ class InvoiceProcessingService
 
             $grossAmount = (float) $validatedData['gross_amount'];
 
+            $exchangeRateDate = null;
+
             if ($currency === 'HUF') {
                 $exchangeRate = 1;
                 $amountHuf = $grossAmount;
@@ -95,10 +97,12 @@ class InvoiceProcessingService
                 );
 
                 $exchangeRate = (float) $rate->rate;
+                $exchangeRateDate = $rate->rate_date->format('Y-m-d');
+
                 $amountHuf = $grossAmount * $exchangeRate / $rate->unit;
             }
 
-            DB::transaction(function () use ($validatedData, $invoice, $currency, $exchangeRate, $amountHuf) {
+            DB::transaction(function () use ($validatedData, $invoice, $currency, $exchangeRate, $exchangeRateDate, $amountHuf) {
                 $seller = $this->findOrCreatePartner(
                     $validatedData['seller']
                 );
@@ -122,6 +126,7 @@ class InvoiceProcessingService
                     'currency' => $currency,
                     'gross_amount' => $validatedData['gross_amount'],
                     'exchange_rate' => $exchangeRate,
+                    'exchange_rate_date' => $exchangeRateDate,
                     'amount_huf' => round($amountHuf, 2),
                     'direction' => $direction,
                     'processing_status' => 'processed',

@@ -8,11 +8,16 @@ type Partner = {
 
 type Invoice = {
   id: number
-  invoice_number: string
+  invoice_number: string | null
   issue_date: string | null
-  gross_amount: string
-  currency: string
-  direction: 'incoming' | 'outgoing'
+  fulfillment_date: string | null
+  due_date: string | null
+  gross_amount: string | null
+  currency: string | null
+  exchange_rate: string | null
+  exchange_rate_date: string | null
+  amount_huf: string | null
+  direction: 'incoming' | 'outgoing' | null
   processing_status: string
   seller?: Partner | null
   buyer?: Partner | null
@@ -63,38 +68,65 @@ function InvoiceList({ refreshKey }: InvoiceListProps) {
             ? invoice.seller?.name ?? 'Unknown partner'
             : invoice.buyer?.name ?? 'Unknown partner'
 
+        const formatDate = (date: string | null) =>
+          date ? new Date(date).toLocaleDateString('hu-HU') : '—'
+
+        const formatAmount = (amount: string | null) =>
+          amount !== null
+            ? Number(amount).toLocaleString('hu-HU', {
+              maximumFractionDigits: 2,
+            })
+            : '—'
+
         return (
           <div className="invoice-row" key={invoice.id}>
-
             <div>
-              <strong>{invoice.invoice_number}</strong>
+              <strong>{invoice.invoice_number ?? 'Unknown invoice'}</strong>
               <p>{partner}</p>
               <p>
-                {invoice.issue_date
-                  ? new Date(invoice.issue_date).toLocaleDateString('hu-HU')
-                  : 'No date'}
+                Issue date: {formatDate(invoice.issue_date)}
               </p>
-              {invoice.direction && (
-                <span className={`direction-badge ${invoice.direction}`}>
-                  {invoice.direction === 'incoming'
-                    ? 'Incoming'
-                    : 'Outgoing'}
-                </span>
-              )}
+              <p>
+                Fulfillment date: {formatDate(invoice.fulfillment_date)}
+              </p>
+              <p>
+                Due date: {formatDate(invoice.due_date)}
+              </p>
             </div>
 
-            <span>
-              {Number(invoice.gross_amount).toLocaleString('hu-HU')}{' '}
-              {invoice.currency}
-            </span>
+            <div>
+              <p>
+                Original amount: {formatAmount(invoice.gross_amount)}{' '}
+                {invoice.currency ?? ''}
+              </p>
+              <p>
+                Exchange rate: {formatAmount(invoice.exchange_rate)}
+              </p>
+              <p>
+                Exchange rate date: {formatDate(invoice.exchange_rate_date)}
+              </p>
+              <p>
+                HUF amount: {formatAmount(invoice.amount_huf)} Ft
+              </p>
+            </div>
 
-            <span className={`status-badge ${invoice.processing_status}`}>
-              {invoice.processing_status === 'processed'
-                ? 'Processed'
-                : invoice.processing_status === 'failed'
-                  ? 'Failed'
-                  : 'Pending'}
-            </span>
+            <div>
+              {invoice.direction && (
+                <span className={`direction-badge ${invoice.direction}`}>
+                  {invoice.direction === 'incoming' ? 'Incoming' : 'Outgoing'}
+                </span>
+              )}
+
+              <p>
+                <span className={`status-badge ${invoice.processing_status}`}>
+                  {invoice.processing_status === 'processed'
+                    ? 'Processed'
+                    : invoice.processing_status === 'failed'
+                      ? 'Failed'
+                      : 'Pending'}
+                </span>
+              </p>
+            </div>
           </div>
         )
       })}
