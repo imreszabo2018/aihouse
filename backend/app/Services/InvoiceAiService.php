@@ -72,9 +72,14 @@ class InvoiceAiService
         }
 
         if ($response->failed()) {
+            $errorMessage = $response->json('error.message')
+                ?? 'Unknown API error';
+
             throw new RuntimeException(
                 'OpenRouter API request failed: '
                 . $response->status()
+                . ' - '
+                . $errorMessage
             );
         }
 
