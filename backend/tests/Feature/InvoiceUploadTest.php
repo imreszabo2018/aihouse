@@ -111,4 +111,52 @@ class InvoiceUploadTest extends TestCase
             ->assertJsonPath('message', 'Invoice processing failed.')
             ->assertJsonPath('error', 'MNB service unavailable.');
     }
+
+    public function test_it_deletes_new_file_when_duplicate_invoice_is_rejected(): void
+    {
+        Storage::fake('local');
+
+        Storage::disk('local')->put(
+            'invoices/original-invoice.pdf',
+            'Original invoice content'
+        );
+
+        Invoice::create([
+            'file_hash' => hash('sha256', 'Original invoice'),
+            'file_path' => 'invoices/original-invoice.pdf',
+            'original_filename' => 'original-invoice.pdf',
+            'processing_status' => 'processed',
+        ]);
+
+        $file = UploadedFile::fake()->create(
+            'invoice.pdf',
+            100,
+            'application/pdf'
+        );
+
+        $this->mock(InvoiceProcessingService::class)
+            ->shouldReceive('process')
+            ->once()
+            ->andThrow(new \RuntimeException(
+                'This invoice has already been uploaded: invoice.pdf'
+            ));
+
+        $response = $this->post('/api/invoices', [
+            'file' => $file,
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Invoice processing failed.');
+
+        $this->assertSame(
+            ['invoices/original-invoice.pdf'],
+            Storage::disk('local')->allFiles('invoices')
+        );
+
+        $this->assertDatabaseHas('invoices', [
+            'original_filename' => 'original-invoice.pdf',
+            'processing_status' => 'processed',
+        ]);
+    }
 }

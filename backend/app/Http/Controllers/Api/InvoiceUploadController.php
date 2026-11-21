@@ -53,6 +53,10 @@ class InvoiceUploadController extends Controller
                 ->with(['seller', 'buyer'])
                 ->first();
 
+            if ($invoice === null) {
+                Storage::disk('local')->delete($filePath);
+            }
+
             return response()->json([
                 'message' => 'Invoice processing failed.',
                 'error' => $exception->getMessage(),

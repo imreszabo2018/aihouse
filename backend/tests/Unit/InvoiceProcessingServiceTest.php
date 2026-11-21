@@ -301,7 +301,7 @@ class InvoiceProcessingServiceTest extends TestCase
             ->andReturn(new ExchangeRate([
                 'currency' => 'EUR',
                 'rate_date' => '2026-11-19',
-                'rate' => 368.970000,
+                'rate' => 368.975000,
                 'unit' => 1,
             ]));
 
@@ -314,12 +314,12 @@ class InvoiceProcessingServiceTest extends TestCase
 
         $this->assertSame('EUR', $invoice->currency);
         $this->assertEquals(100, $invoice->gross_amount);
-        $this->assertEquals(368.970000, $invoice->exchange_rate);
+        $this->assertEquals(368.975000, $invoice->exchange_rate);
         $this->assertDatabaseHas('invoices', [
             'id' => $invoice->id,
             'exchange_rate_date' => '2026-11-19 00:00:00',
         ]);
-        $this->assertEquals(36897.00, $invoice->amount_huf);
+        $this->assertEquals(36898, $invoice->amount_huf);
         $this->assertSame('processed', $invoice->processing_status);
     }
     public function test_it_keeps_huf_invoice_amount_without_exchange_rate_lookup(): void
@@ -357,7 +357,7 @@ class InvoiceProcessingServiceTest extends TestCase
             'fulfillment_date' => '2026-11-19',
             'due_date' => '2026-12-03',
             'currency' => 'HUF',
-            'gross_amount' => 12345.67,
+            'gross_amount' => 12345.50,
         ];
 
         $this->mock(InvoiceDataValidator::class)
@@ -376,9 +376,9 @@ class InvoiceProcessingServiceTest extends TestCase
         );
 
         $this->assertSame('HUF', $invoice->currency);
-        $this->assertEquals(12345.67, $invoice->gross_amount);
+        $this->assertEquals(12345.50, $invoice->gross_amount);
         $this->assertEquals(1, $invoice->exchange_rate);
-        $this->assertEquals(12345.67, $invoice->amount_huf);
+        $this->assertEquals(12346, $invoice->amount_huf);
         $this->assertSame('processed', $invoice->processing_status);
     }
 }

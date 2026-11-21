@@ -58,21 +58,45 @@ class InvoiceProcessingService
         $fileHash = $this->calculateFileHash($filePath);
 
         $absolutePath = Storage::disk('local')->path($filePath);
-
+        $oldFilePath = null;
         $duplicate = $this->findDuplicate($fileHash);
 
         if ($duplicate !== null) {
-            throw new \RuntimeException(
-                "This invoice has already been uploaded: {$originalFilename}"
-            );
-        }
+            if ($duplicate->processing_status !== 'failed') {
+                throw new \RuntimeException(
+                    "This invoice has already been uploaded: {$originalFilename}"
+                );
+            }
 
-        $invoice = Invoice::create([
-            'file_path' => $filePath,
-            'original_filename' => $originalFilename,
-            'file_hash' => $fileHash,
-            'processing_status' => 'pending',
-        ]);
+            $oldFilePath = $duplicate->file_path;
+            $invoice = $duplicate;
+
+            $invoice->update([
+                'seller_id' => null,
+                'buyer_id' => null,
+                'invoice_number' => null,
+                'issue_date' => null,
+                'fulfillment_date' => null,
+                'due_date' => null,
+                'currency' => null,
+                'gross_amount' => null,
+                'exchange_rate' => null,
+                'exchange_rate_date' => null,
+                'amount_huf' => null,
+                'direction' => null,
+                'file_path' => $filePath,
+                'original_filename' => $originalFilename,
+                'processing_status' => 'pending',
+                'processing_error' => null,
+            ]);
+        } else {
+            $invoice = Invoice::create([
+                'file_path' => $filePath,
+                'original_filename' => $originalFilename,
+                'file_hash' => $fileHash,
+                'processing_status' => 'pending',
+            ]);
+        }
 
         try {
             $text = $this->pdfParser->extractText($absolutePath);
@@ -127,7 +151,7 @@ class InvoiceProcessingService
                     'gross_amount' => $validatedData['gross_amount'],
                     'exchange_rate' => $exchangeRate,
                     'exchange_rate_date' => $exchangeRateDate,
-                    'amount_huf' => round($amountHuf, 2),
+                    'amount_huf' => round($amountHuf, 0, PHP_ROUND_HALF_UP),
                     'direction' => $direction,
                     'processing_status' => 'processed',
                     'processing_error' => null,
@@ -140,6 +164,10 @@ class InvoiceProcessingService
             ]);
 
             throw $exception;
+        }
+
+        if (isset($oldFilePath) && $oldFilePath !== $filePath) {
+            Storage::disk('local')->delete($oldFilePath);
         }
 
         return $invoice;
