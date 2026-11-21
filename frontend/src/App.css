@@ -518,3 +518,69 @@ table tr th,
 table tr td {
   border: 1px solid #000;
 }
+
+
+/* Partner Summary table */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 10px;
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  border: none;
+  text-align: left;
+}
+
+.table-container thead {
+  background: #f8f9fc;
+}
+
+.table-container th {
+  padding: 15px 16px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-bottom: 1px solid #e9edf5;
+  white-space: nowrap;
+}
+
+.table-container td {
+  padding: 15px 16px;
+  color: #475569;
+  font-size: 14px;
+  border: none;
+  border-bottom: 1px solid #eef0f5;
+}
+
+.table-container tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table-container tbody tr {
+  transition: background 0.2s ease;
+}
+
+.table-container tbody tr:hover {
+  background: #f8f9fc;
+}
+
+.table-container td:nth-child(3),
+.table-container td:nth-child(4) {
+  font-weight: 500;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.upload-success {
+    color: #16a34a;
+    font-weight: 500;
+}
+
+.upload-error {
+    color: #dc2626;
+    font-weight: 500;
+}

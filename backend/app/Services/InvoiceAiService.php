@@ -30,26 +30,46 @@ class InvoiceAiService
 
         $model = config('services.openrouter.model');
 
-        $response = Http::withToken($apiKey)
-            ->timeout(90)
-            ->acceptJson()
-            ->post($baseUrl . '/chat/completions', [
-                'model' => $model,
-                'temperature' => 0,
-                'response_format' => [
-                    'type' => 'json_object',
+
+        $payload = [
+            'model' => $model,
+            'temperature' => 0,
+            'response_format' => [
+                'type' => 'json_object',
+            ],
+            'messages' => [
+                [
+                    'role' => 'system',
+                    'content' => $this->getSystemPrompt(),
                 ],
-                'messages' => [
-                    [
-                        'role' => 'system',
-                        'content' => $this->getSystemPrompt(),
-                    ],
-                    [
-                        'role' => 'user',
-                        'content' => $text,
-                    ],
+                [
+                    'role' => 'user',
+                    'content' => $text,
                 ],
-            ]);
+            ],
+        ];
+
+        $maxAttempts = 4;
+        $response = null;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            $response = Http::withToken($apiKey)
+                ->timeout(90)
+                ->acceptJson()
+                ->post($baseUrl . '/chat/completions', $payload);
+
+            if ($response->status() !== 429 || $attempt === $maxAttempts) {
+                break;
+            }
+
+            $retryAfter = (int) $response->header('Retry-After', 0);
+
+            $waitSeconds = $retryAfter > 0
+                ? min($retryAfter, 60)
+                : $attempt * 5;
+
+            sleep($waitSeconds);
+        }
 
         if ($response->failed()) {
             throw new RuntimeException(
@@ -104,6 +124,11 @@ Important rules:
 - Never invent missing information.
 - Return null for missing or uncertain values.
 - Dates must use YYYY-MM-DD format.
+- The fulfillment date may appear under different labels:
+  teljesítés dátuma, teljesítés ideje, Leistungsdatum,
+  date de prestation, delivery date, supply date or service date.
+- Distinguish the fulfillment date from the issue date and due date.
+- If multiple dates are present, identify each according to its meaning.
 - Amounts must be numeric values without currency symbols.
 - Use ISO 4217 currency codes: HUF, EUR, USD, GBP, PLN.
 - gross_amount must represent the final payable gross amount.

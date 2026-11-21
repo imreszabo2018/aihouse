@@ -7,12 +7,14 @@ function Invoices() {
     const [isUploading, setIsUploading] = useState(false)
     const [uploadMessage, setUploadMessage] = useState('')
     const [uploadProgress, setUploadProgress] = useState('')
+    const [uploadStatus, setUploadStatus] = useState<'success' | 'error' | ''>('')
 
     async function handleUpload(files: File[]) {
         if (files.length === 0) return
 
         setIsUploading(true)
         setUploadMessage('')
+        setUploadStatus('')
 
         let successful = 0
         let failed = 0
@@ -38,7 +40,7 @@ function Invoices() {
         setUploadMessage(
             `Finished! Successful: ${successful}, Failed: ${failed}`
         )
-
+        setUploadStatus(failed === 0 ? 'success' : 'error')
         setUploadProgress('')
         setIsUploading(false)
     }
@@ -79,7 +81,7 @@ function Invoices() {
                     )}
 
                     {uploadMessage && (
-                        <p className="upload-message">
+                        <p className={`upload-message upload-${uploadStatus}`}>
                             {uploadMessage}
                         </p>
                     )}

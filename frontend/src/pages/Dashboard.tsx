@@ -12,6 +12,7 @@ import {
     Tooltip,
     Legend,
 } from 'recharts'
+import { useNavigate } from 'react-router-dom'
 
 type Invoice = {
     id: number
@@ -39,6 +40,7 @@ function Dashboard() {
     const [isUploading, setIsUploading] = useState(false)
     const [uploadMessage, setUploadMessage] = useState('')
     const [invoices, setInvoices] = useState<Invoice[]>([])
+    const navigate = useNavigate()
 
     useEffect(() => {
         async function loadInvoices() {
@@ -355,7 +357,10 @@ function Dashboard() {
                         <p>Your latest processed invoices.</p>
                     </div>
 
-                    <button className="secondary-button">
+                    <button
+                        className="secondary-button"
+                        onClick={() => navigate('/invoices')}
+                    >
                         View all
                     </button>
                 </div>
