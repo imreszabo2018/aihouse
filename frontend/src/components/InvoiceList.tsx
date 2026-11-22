@@ -4,6 +4,7 @@ import { getInvoices } from '../services/api'
 
 type Partner = {
   name: string
+  tax_number: string | null
 }
 
 type Invoice = {
@@ -63,10 +64,6 @@ function InvoiceList({ refreshKey }: InvoiceListProps) {
   return (
     <div className="invoice-list">
       {invoices.map((invoice) => {
-        const partner =
-          invoice.direction === 'incoming'
-            ? invoice.seller?.name ?? 'Unknown partner'
-            : invoice.buyer?.name ?? 'Unknown partner'
 
         const formatDate = (date: string | null) =>
           date ? new Date(date).toLocaleDateString('hu-HU') : '—'
@@ -82,7 +79,21 @@ function InvoiceList({ refreshKey }: InvoiceListProps) {
           <div className="invoice-row" key={invoice.id}>
             <div>
               <strong>{invoice.invoice_number ?? 'Unknown invoice'}</strong>
-              <p>{partner}</p>
+
+              <p>
+                Seller: {invoice.seller?.name ?? '—'}
+              </p>
+              <p>
+                Seller tax number: {invoice.seller?.tax_number ?? '—'}
+              </p>
+
+              <p>
+                Buyer: {invoice.buyer?.name ?? '—'}
+              </p>
+              <p>
+                Buyer tax number: {invoice.buyer?.tax_number ?? '—'}
+              </p>
+
               <p>
                 Issue date: {formatDate(invoice.issue_date)}
               </p>
