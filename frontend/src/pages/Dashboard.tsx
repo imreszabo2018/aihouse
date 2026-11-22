@@ -13,26 +13,11 @@ import {
     Legend,
 } from 'recharts'
 import { useNavigate } from 'react-router-dom'
-
-type Invoice = {
-    id: number
-    invoice_number: string | null
-    due_date: string | null
-    gross_amount: string | null
-    amount_huf: string | null
-    currency: string | null
-    direction: 'incoming' | 'outgoing' | null
-    processing_status: string
-    seller: {
-        name: string
-        tax_number: string | null
-    } | null
-
-    buyer: {
-        name: string
-        tax_number: string | null
-    } | null
-}
+import {
+    calculateMonthlyCashFlow,
+    calculatePartnerSummary,
+    type Invoice,
+} from '../utils/invoiceStatistics'
 
 function Dashboard() {
 
@@ -55,131 +40,60 @@ function Dashboard() {
         loadInvoices()
     }, [refreshKey])
 
+
     const processedInvoices = invoices.filter(
         (invoice) => invoice.processing_status === 'processed'
     )
 
     const totalInvoices = processedInvoices.length
+
     const incomingInvoices = processedInvoices.filter(
         (invoice) => invoice.direction === 'incoming'
     ).length
+
     const outgoingInvoices = processedInvoices.filter(
         (invoice) => invoice.direction === 'outgoing'
     ).length
+
     const totalAmountHuf = processedInvoices.reduce(
         (sum, invoice) => sum + Math.round(Number(invoice.amount_huf ?? 0)),
         0
     )
-    const monthlyCashFlow = processedInvoices.reduce((months, invoice) => {
-        if (!invoice.due_date || !invoice.direction) {
-            return months
-        }
 
-        const month = invoice.due_date.substring(0, 7)
+    const monthlyCashFlowData = calculateMonthlyCashFlow(invoices)
 
-        if (!months[month]) {
-            months[month] = {
-                incoming: 0,
-                outgoing: 0,
-            }
-        }
+    const partnerSummaryData = calculatePartnerSummary(invoices)
 
-        const amount = Math.round(Number(invoice.amount_huf ?? 0))
-
-        if (invoice.direction === 'incoming') {
-            months[month].incoming += amount
-        } else if (invoice.direction === 'outgoing') {
-            months[month].outgoing += amount
-        }
-
-        return months
-    }, {} as Record<string, { incoming: number; outgoing: number }>)
-
-    const months = Object.keys(monthlyCashFlow).sort()
-
-    const monthlyCashFlowData = months.length > 0
-        ? (() => {
-            const firstDate = new Date(`${months[0]}-01T00:00:00`)
-            const lastDate = new Date(`${months[months.length - 1]}-01T00:00:00`)
-
-            const result = []
-            const currentDate = new Date(firstDate)
-
-            while (currentDate <= lastDate) {
-                const month = `${currentDate.getFullYear()}-${String(
-                    currentDate.getMonth() + 1
-                ).padStart(2, '0')}`
-
-                result.push({
-                    month,
-                    incoming: monthlyCashFlow[month]?.incoming ?? 0,
-                    outgoing: monthlyCashFlow[month]?.outgoing ?? 0,
-                })
-
-                currentDate.setMonth(currentDate.getMonth() + 1)
-            }
-
-            return result
-        })()
-        : []
-
-    const partnerSummary = processedInvoices.reduce((partners, invoice) => {
-        const partner = invoice.direction === 'incoming'
-            ? invoice.seller
-            : invoice.direction === 'outgoing'
-                ? invoice.buyer
-                : null
-
-        if (!partner?.tax_number) {
-            return partners
-        }
-
-        const taxNumber = partner.tax_number
-
-        if (!partners[taxNumber]) {
-            partners[taxNumber] = {
-                name: partner.name,
-                taxNumber,
-                incoming: 0,
-                outgoing: 0,
-            }
-        }
-
-        const amount = Math.round(Number(invoice.amount_huf ?? 0))
-
-        if (invoice.direction === 'incoming') {
-            partners[taxNumber].incoming += amount
-        } else if (invoice.direction === 'outgoing') {
-            partners[taxNumber].outgoing += amount
-        }
-
-        return partners
-    }, {} as Record<string, {
-        name: string
-        taxNumber: string
-        incoming: number
-        outgoing: number
-    }>)
-
-    const partnerSummaryData = Object.values(partnerSummary)
-
-    async function handleUpload(file: File) {
+    async function handleUpload(files: File[]) {
         setIsUploading(true)
         setUploadMessage('')
 
-        try {
-            const result = await uploadInvoice(file)
+        let successfulUploads = 0
+        let failedUploads = 0
 
-            console.log('Invoice uploaded successfully:', result)
-
-            setRefreshKey((current) => current + 1)
-            setUploadMessage('Invoice processed successfully!')
-        } catch (error) {
-            console.error('Upload error:', error)
-            setUploadMessage('Failed to process invoice. Please try again.')
-        } finally {
-            setIsUploading(false)
+        for (const file of files) {
+            try {
+                await uploadInvoice(file)
+                successfulUploads++
+            } catch (error) {
+                console.error(`Upload error for ${file.name}:`, error)
+                failedUploads++
+            }
         }
+
+        setRefreshKey((current) => current + 1)
+
+        if (failedUploads === 0) {
+            setUploadMessage(
+                `Successfully processed ${successfulUploads} invoice(s).`
+            )
+        } else {
+            setUploadMessage(
+                `Processed: ${successfulUploads}, failed: ${failedUploads}.`
+            )
+        }
+
+        setIsUploading(false)
     }
 
     return (
@@ -194,17 +108,17 @@ function Dashboard() {
                 <div className="upload-container">
                     <label className={`primary-button ${isUploading ? 'uploading' : ''}`}>
                         {isUploading ? 'Processing...' : '+ Upload invoice'}
-
                         <input
                             type="file"
                             accept="application/pdf"
+                            multiple
                             hidden
                             disabled={isUploading}
                             onChange={(event) => {
-                                const file = event.target.files?.[0]
+                                const files = Array.from(event.target.files ?? [])
 
-                                if (file) {
-                                    handleUpload(file)
+                                if (files.length > 0) {
+                                    handleUpload(files)
                                 }
 
                                 event.target.value = ''
@@ -315,34 +229,41 @@ function Dashboard() {
                     <table>
                         <thead>
                             <tr>
-                                <th>Partner</th>
-                                <th>Tax number</th>
-                                <th>Incoming (HUF)</th>
-                                <th>Outgoing (HUF)</th>
+                                <th>Category</th>
+                                {partnerSummaryData.map((partner) => (
+                                    <th key={partner.taxNumber}>
+                                        {partner.name}
+                                        <br />
+                                        <small>{partner.taxNumber}</small>
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
 
                         <tbody>
-                            {partnerSummaryData.map((partner) => (
-                                <tr key={partner.taxNumber}>
-                                    <td>{partner.name}</td>
-                                    <td>{partner.taxNumber}</td>
-                                    <td>
-                                        {partner.incoming.toLocaleString('hu-HU', {
-                                            maximumFractionDigits: 0,
-                                        })} Ft
+                            <tr>
+                                <td>Össz bejövő</td>
+                                {partnerSummaryData.map((partner) => (
+                                    <td key={partner.taxNumber}>
+                                        {partner.incoming.toLocaleString('hu-HU')} Ft
                                     </td>
-                                    <td>
-                                        {partner.outgoing.toLocaleString('hu-HU', {
-                                            maximumFractionDigits: 0,
-                                        })} Ft
+                                ))}
+                            </tr>
+
+                            <tr>
+                                <td>Össz kimenő</td>
+                                {partnerSummaryData.map((partner) => (
+                                    <td key={partner.taxNumber}>
+                                        {partner.outgoing.toLocaleString('hu-HU')} Ft
                                     </td>
-                                </tr>
-                            ))}
+                                ))}
+                            </tr>
 
                             {partnerSummaryData.length === 0 && (
                                 <tr>
-                                    <td colSpan={4}>No partner data available.</td>
+                                    <td colSpan={1}>
+                                        No partner data available.
+                                    </td>
                                 </tr>
                             )}
                         </tbody>

@@ -159,4 +159,62 @@ class InvoiceUploadTest extends TestCase
             'processing_status' => 'processed',
         ]);
     }
+
+    public function test_it_can_process_next_invoice_after_previous_upload_fails(): void
+    {
+        Storage::fake('local');
+
+        $attempt = 0;
+
+        $this->mock(InvoiceProcessingService::class)
+            ->shouldReceive('process')
+            ->twice()
+            ->andReturnUsing(function () use (&$attempt) {
+                $attempt++;
+
+                if ($attempt === 1) {
+                    throw new \RuntimeException('Invalid invoice PDF.');
+                }
+
+                return new Invoice([
+                    'invoice_number' => 'TEST-2026-002',
+                    'currency' => 'HUF',
+                    'gross_amount' => 25000,
+                    'exchange_rate' => 1,
+                    'amount_huf' => 25000,
+                    'processing_status' => 'processed',
+                ]);
+            });
+
+        $firstFile = UploadedFile::fake()->create(
+            'invalid-invoice.pdf',
+            100,
+            'application/pdf'
+        );
+
+        $secondFile = UploadedFile::fake()->create(
+            'valid-invoice.pdf',
+            100,
+            'application/pdf'
+        );
+
+        $firstResponse = $this->post('/api/invoices', [
+            'file' => $firstFile,
+        ]);
+
+        $firstResponse
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Invoice processing failed.');
+
+        $secondResponse = $this->post('/api/invoices', [
+            'file' => $secondFile,
+        ]);
+
+        $secondResponse
+            ->assertCreated()
+            ->assertJsonPath('invoice.invoice_number', 'TEST-2026-002');
+
+        $this->assertSame(2, $attempt);
+    }
+
 }
