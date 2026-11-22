@@ -50,8 +50,8 @@ No local PHP, Composer, Node.js, or MySQL installation is required.
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
-cd invoice-processor
+git clone https://github.com/imreszabo2018/aihouse.git
+cd aihouse
 ```
 
 ### 2. Configure environment variables
@@ -72,7 +72,7 @@ docker compose up --build -d
 
 Docker Compose starts the database, Laravel backend, and React frontend.
 
-On the first startup, the backend container installs Composer dependencies, generates the Laravel application key, and runs database migrations
+On the first startup, the backend container installs Composer dependencies, generates the Laravel application key, and runs database migrations.
 
 ## Testing
 
@@ -125,9 +125,11 @@ The application supports optional invoice data extraction using OpenRouter.
 Configure the following variables in `backend/.env`:
 
 ```dotenv
+
 OPENROUTER_API_KEY=
 OPENROUTER_MODEL=openrouter/free
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+
 ```
 
 An OpenRouter API key is required to use the AI-powered extraction feature. The rest of the application can be started without configuring an API key.
@@ -136,8 +138,7 @@ Never commit API keys or other secrets to the repository.
 
 ## Project Structure
 
-```text
-invoice-processor/
+aihouse/
 ├── backend/              # Laravel API
 ├── frontend/             # React application
 ├── docker/
@@ -147,4 +148,5 @@ invoice-processor/
 ├── docker-compose.yml    # Application services
 ├── AI_NAPLO.md           # AI development log
 └── README.md
+
 ```
