@@ -120,16 +120,18 @@ docker compose down -v
 
 ## AI Integration
 
-The application supports optional invoice data extraction using OpenRouter.
+The application supports AI-powered invoice data extraction using OpenRouter.
+
+The current configuration uses **DeepSeek V3.1** (`deepseek/deepseek-chat-v3.1`).
+
+This model was selected because it offers a practical balance between reasoning capabilities, structured data generation, and API usage costs. Its support for structured outputs makes it suitable for extracting invoice information into a predictable format.
 
 Configure the following variables in `backend/.env`:
 
-```dotenv
-
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=openrouter/free
+```env
+OPENROUTER_API_KEY=your_api_key
+OPENROUTER_MODEL=deepseek/deepseek-chat-v3.1
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-
 ```
 
 An OpenRouter API key is required to use the AI-powered extraction feature. The rest of the application can be started without configuring an API key.
@@ -139,14 +141,14 @@ Never commit API keys or other secrets to the repository.
 ## Project Structure
 
 aihouse/
-├── backend/              # Laravel API
-├── frontend/             # React application
+├── backend/                            # Laravel API
+├── frontend/                           # React application
 ├── docker/
-│   └── php/              # PHP Docker configuration
-├── .env.example          # Root environment template
-├── .gitattributes        # Git line-ending configuration
-├── docker-compose.yml    # Application services
-├── AI_NAPLO.md           # AI development log
+│   └── php/                            # PHP Docker configuration
+├── .env.example                        # Root environment template
+├── .gitattributes                      # Git line-ending configuration
+├── docker-compose.yml                  # Application services
+├── AI_NAPLO.md                         # AI development log
 └── README.md
 
 ```
