@@ -140,15 +140,7 @@ Never commit API keys or other secrets to the repository.
 
 ## Project Structure
 
-aihouse/
-├── backend/                            # Laravel API
-├── frontend/                           # React application
-├── docker/
-│   └── php/                            # PHP Docker configuration
-├── .env.example                        # Root environment template
-├── .gitattributes                      # Git line-ending configuration
-├── docker-compose.yml                  # Application services
-├── AI_NAPLO.md                         # AI development log
-└── README.md
+<img width="793" height="437" alt="image" src="https://github.com/user-attachments/assets/0f05ed8d-2577-4e96-87f6-cc07a9d92ce1" />
+
 
 ```
