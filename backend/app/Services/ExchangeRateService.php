@@ -6,15 +6,13 @@ use App\Models\ExchangeRate;
 
 class ExchangeRateService
 {
-
     public function __construct(
         private MnbExchangeRateService $mnbService
     ) {
     }
 
     /**
-     * Get an exchange rate for a given currency and date.
-     * Uses the latest available MNB rate on or before the requested date.
+     * Get the latest available exchange rate on or before the requested date.
      */
     public function getExchangeRate(
         string $currency,
@@ -22,17 +20,9 @@ class ExchangeRateService
     ): ExchangeRate {
         $currency = strtoupper($currency);
 
-        // Check whether an exchange rate is already stored
-        // for the requested date or an earlier date within 10 days.
-        $startDate = date(
-            'Y-m-d',
-            strtotime($date . ' -10 days')
-        );
-
+        // Only use a cached rate if it matches the exact requested date.
         $existingRate = ExchangeRate::where('currency', $currency)
-            ->whereDate('rate_date', '<=', $date)
-            ->whereDate('rate_date', '>=', $startDate)
-            ->orderByDesc('rate_date')
+            ->whereDate('rate_date', $date)
             ->first();
 
         if ($existingRate !== null) {
@@ -53,16 +43,24 @@ class ExchangeRateService
 
         $rates = $this->mnbService->parseExchangeRates($xml);
 
+        // Never accept a rate later than the requested date.
+        $rates = array_filter(
+            $rates,
+            fn(array $rate): bool =>
+                $rate['currency'] === $currency &&
+                $rate['rate_date'] <= $date
+        );
+
         if (empty($rates)) {
             throw new \RuntimeException(
                 "No MNB exchange rate found for {$currency} on or before {$date}."
             );
         }
 
-        // Select the latest rate that is not later than the requested date.
+        // Select the latest available rate.
         usort(
             $rates,
-            fn(array $a, array $b) =>
+            fn(array $a, array $b): int =>
                 strcmp($b['rate_date'], $a['rate_date'])
         );
 
@@ -77,13 +75,6 @@ class ExchangeRateService
 
     /**
      * Save exchange rates to the database.
-     *
-     * @param array<int, array{
-     *     currency: string,
-     *     rate_date: string,
-     *     rate: string,
-     *     unit: int
-     * }> $rates
      */
     public function saveExchangeRates(array $rates): void
     {
@@ -108,5 +99,4 @@ class ExchangeRateService
             $exchangeRate->save();
         }
     }
-
 }

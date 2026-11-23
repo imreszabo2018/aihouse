@@ -159,7 +159,7 @@ class ExchangeRateServiceTest extends TestCase
         $service->getExchangeRate('EUR', '2026-11-21');
     }
 
-    public function test_it_uses_cached_previous_rate_for_weekends(): void
+    public function test_it_fetches_from_mnb_even_when_previous_rate_is_cached(): void
     {
         ExchangeRate::create([
             'currency' => 'EUR',
@@ -170,7 +170,21 @@ class ExchangeRateServiceTest extends TestCase
 
         $mnbService = \Mockery::mock(MnbExchangeRateService::class);
 
-        $mnbService->shouldNotReceive('getExchangeRates');
+        $mnbService->shouldReceive('getExchangeRates')
+            ->once()
+            ->with('2026-11-11', '2026-11-21', 'EUR')
+            ->andReturn('<MNBExchangeRates></MNBExchangeRates>');
+
+        $mnbService->shouldReceive('parseExchangeRates')
+            ->once()
+            ->andReturn([
+                [
+                    'currency' => 'EUR',
+                    'rate_date' => '2026-11-20',
+                    'rate' => '369.10000',
+                    'unit' => 1,
+                ],
+            ]);
 
         $this->app->instance(MnbExchangeRateService::class, $mnbService);
 
@@ -190,4 +204,37 @@ class ExchangeRateServiceTest extends TestCase
 
         $this->assertDatabaseCount('exchange_rates', 1);
     }
+
+    public function test_it_rejects_exchange_rates_from_future_dates(): void
+    {
+        $mnbService = \Mockery::mock(MnbExchangeRateService::class);
+
+        $mnbService->shouldReceive('getExchangeRates')
+            ->once()
+            ->with('2026-11-11', '2026-11-21', 'EUR')
+            ->andReturn('<MNBExchangeRates></MNBExchangeRates>');
+
+        $mnbService->shouldReceive('parseExchangeRates')
+            ->once()
+            ->andReturn([
+                [
+                    'currency' => 'EUR',
+                    'rate_date' => '2026-11-22',
+                    'rate' => '370.50000',
+                    'unit' => 1,
+                ],
+            ]);
+
+        $this->app->instance(MnbExchangeRateService::class, $mnbService);
+
+        $service = app(ExchangeRateService::class);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'No MNB exchange rate found for EUR on or before 2026-11-21.'
+        );
+
+        $service->getExchangeRate('EUR', '2026-11-21');
+    }
+
 }
